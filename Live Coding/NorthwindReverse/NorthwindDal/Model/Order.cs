@@ -50,6 +50,8 @@ namespace NorthwindDal.Model
         public string? ShipPostalCode { get; set; }
         [StringLength(15)]
         public string? ShipCountry { get; set; }
+        public byte[]? TimeStamp { get; set; }
+
 
         [ForeignKey(nameof(CustomerId))]
         [InverseProperty("Orders")]

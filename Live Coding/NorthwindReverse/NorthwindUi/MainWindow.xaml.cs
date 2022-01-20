@@ -1,4 +1,5 @@
-﻿using NorthwindDal.Model;
+﻿using Microsoft.EntityFrameworkCore;
+using NorthwindDal.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,8 +34,12 @@ namespace NorthwindUi
 
             context.Log = LogIt;
 
-            var qCountries = context.Customers.Select(cu => cu.Country).Distinct();
+            context.Database.Migrate();
 
+            var qCountries = context.Customers.Select(cu => cu.Country).Distinct();
+            //var qCustomers = context.Customers.ToList();
+
+            //foreach (Customer cu in qCustomers)
             foreach (string country in qCountries)
             {
                 TreeViewItem tvi = new TreeViewItem() { Header = country };
@@ -64,6 +69,8 @@ namespace NorthwindUi
                 var qCustomersFromCountry = context.Customers.Where(cu => cu.Country == tviCountry.Header.ToString())
                                                             .Select(cu => new { cu.CustomerId, cu.CompanyName });
 
+                //var qCustomersFromCountry = context.Customers.AsNoTracking().Where(cu => cu.Country == tviCountry.Header.ToString());
+                //var qCustomersFromCountry = context.Customers.Where(cu => cu.Country == tviCountry.Header.ToString());
 
                 foreach (var customer in qCustomersFromCountry)
                 {
@@ -82,7 +89,7 @@ namespace NorthwindUi
                 context.Log = LogIt;
 
 
-                var qOrders = context.Orders.Where(od => od.CustomerId == tvi.Tag.ToString()).Select(od => od.OrderId);
+                var qOrders = context.Orders.Where(od => od.CustomerId == tvi.Tag.ToString()); //.Select(od => od.OrderId);
 
                 cbxOrders.ItemsSource = qOrders.ToList();
 
@@ -101,6 +108,75 @@ namespace NorthwindUi
                                                 .Select(od => new { od.Quantity, od.Product.ProductName, od.UnitPrice });
 
             dgOrderInfo.ItemsSource = qOrderInfo.ToList();
+        }
+
+        private void btnNew_Click(object sender, RoutedEventArgs e)
+        {
+            NorthwindContext context = new NorthwindContext();
+            Customer customer = new();
+
+            AddEditCustomer addCustomer = new AddEditCustomer(customer);
+
+            if (addCustomer.ShowDialog() == true)
+            {
+                // Dem ChangeTracker des Contextes den neuen Customer bekanntmachen
+                // durch Hinzufügen zum passenden DbSet des DbContextes
+                context.Customers.Add(customer); // EntityState = Added
+                context.SaveChanges();
+            }
+        }
+
+        private void btnEdit_Click(object sender, RoutedEventArgs e)
+        {
+            if (trvCustomers.SelectedItem is TreeViewItem tvi && tvi.Tag != null)
+            {
+                string customerId = tvi.Tag.ToString();
+
+                using (NorthwindContext context = new NorthwindContext())
+                {
+                    context.Log = LogIt;
+
+                    Customer customer = context.Customers.Find(customerId);
+                    if (customer != null)
+                    {
+                        AddEditCustomer dlgEditCustomer = new AddEditCustomer(customer);
+                        if (dlgEditCustomer.ShowDialog() == true)
+                        {
+                            try
+                            {
+                                context.SaveChanges();
+
+                            }
+                            catch (DbUpdateConcurrencyException ex)
+                            {
+                                // Database wins
+                                //MessageBox.Show("Daten in der Datenbank neuer als Deine.\n\rIch lade die Daten neu, versuch es nochmal.");
+                                //context.Entry(customer).Reload(); // nur, wenn kein lokaler Context
+
+                                // Client wins
+                                context.Entry(customer).OriginalValues.SetValues(context.Entry(customer).GetDatabaseValues());
+                                context.SaveChanges();
+
+                            }
+                            catch (Exception ex) {
+                                // Allgemeine Behandlung
+                            }
+                        }
+                        else
+                        {
+                            // (hier wegen lokalem DbContext nicht notwendig):
+
+                            // Alte Werte aus der Datenbank holen
+                            context.Entry(customer).Reload();
+
+                            // Alternative:
+                            // Alte Werte aus Speicherwerten wiederherstellen
+                            context.Entry(customer).CurrentValues.SetValues(context.Entry(customer).OriginalValues);
+                            context.Entry(customer).State = Microsoft.EntityFrameworkCore.EntityState.Unchanged;
+                        }
+                    }
+                }
+            }
         }
     }
 }

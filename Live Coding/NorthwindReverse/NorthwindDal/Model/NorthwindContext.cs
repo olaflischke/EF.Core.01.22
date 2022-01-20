@@ -58,6 +58,10 @@ namespace NorthwindDal.Model
                     .WithMany(p => p.Orders)
                     .HasForeignKey(d => d.CustomerId)
                     .HasConstraintName("FK_Orders_Customers");
+
+                entity.Property(e => e.TimeStamp)
+                   .IsRowVersion()
+                   .IsConcurrencyToken();
             });
 
             modelBuilder.Entity<OrderDetail>(entity =>
