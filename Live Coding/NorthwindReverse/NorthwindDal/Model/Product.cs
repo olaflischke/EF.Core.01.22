@@ -39,4 +39,5 @@ namespace NorthwindDal.Model
         [InverseProperty(nameof(OrderDetail.Product))]
         public virtual ICollection<OrderDetail> OrderDetails { get; set; }
     }
+
 }
